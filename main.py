@@ -12,7 +12,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp import web
 from openpyxl import Workbook
 
-# 🔑 ТОКЕН ИЗ BOTFATHER
+# 🔑 ТОКЕН ИЗ BOTFATHER (Замени на свой!)
 TOKEN = "8838512329:AAGzohl24qnx5X2_qurny0obXcpGNC5PEQU"
 
 logging.basicConfig(level=logging.INFO)
@@ -87,8 +87,8 @@ async def cmd_start(message: types.Message):
         "• `-500` — записать расход\n"
         "• `+2500` — записать доход",
         reply_markup=get_main_menu_keyboard()
-    )
-    @dp.message(FinanceStates.adding_category, F.text)
+        
+    )@dp.message(FinanceStates.adding_category, F.text)
 async def add_category_finish(message: types.Message, state: FSMContext):
     new_cat = message.text.strip()
     user_data = await state.get_data()
@@ -106,14 +106,11 @@ async def add_category_finish(message: types.Message, state: FSMContext):
             await message.answer("⚠️ Такая категория у вас уже существует!")
             
     await state.clear()
-    await message.answer("Главное menu:", reply_markup=get_main_menu_keyboard())
-    
+    await message.answer("Главное меню:", reply_markup=get_main_menu_keyboard())
 
 @dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
-    # 🛡 ДОБАВИТЬ ЭТИ ДВЕ СТРОКИ: если мы в процессе создания категории, этот хэндлер должен пропустить сообщение
-    current_state = await state.get_state()
-    if current_state == FinanceStates.adding_category.state:
+    if await state.get_state() == FinanceStates.adding_category.state:
         return
 
     text = message.text.strip()
@@ -145,7 +142,6 @@ async def process_amount_input(message: types.Message, state: FSMContext):
         await message.answer(f"Вы ввели {sign_text} на сумму **{amount:.2f}**.\n📁 Выберите категорию:", reply_markup=builder.as_markup())
     except (ValueError, OverflowError):
         await message.answer("⚠️ Введите корректное и реалистичное число. Пример: `-150` ")
-        
 
 @dp.callback_query(F.data.startswith("cat:"), FinanceStates.choosing_category)
 async def process_category_selection(callback: types.CallbackQuery, state: FSMContext):
@@ -262,7 +258,6 @@ async def add_category_start(callback: types.CallbackQuery, state: FSMContext):
     type_str = "расходов" if t_type == "expense" else "доходов"
     await callback.message.edit_text(f"✍️ Напишите название новой категории для **{type_str}**:")
     await callback.answer()
-
 
 def generate_excel_report(user_id, sql_time_clause):
     with sqlite3.connect("finance_v3.db") as conn:
@@ -382,4 +377,5 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+    
     
