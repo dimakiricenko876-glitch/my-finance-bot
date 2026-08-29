@@ -7,6 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiohttp import web  # Добавили для обмана Render
 
 # 🔑 ТОКЕН ИЗ BOTFATHER
 TOKEN = "8838512329:AAGzohl24qnx5X2_qurny0obXcpGNC5PEQU"
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-EXPENSE_CATEGORIES = ["🛒 Продукты", "🚗 Транспорт", "🏠 Жилье", "🍔 Кафе/Еда", "🎬 Развлечения", "📦 Другое"]
+EXPENSE_CATEGORIES = ["🛒 Продукты", "🚗  Транспорт", "🏠 Жилье", "🍔 Кафе/Еда", "🎬 Развлечения", "📦 Другое"]
 INCOME_CATEGORIES = ["💰 Зарплата", "💼 Фриланс", "🎁 Подарок", "📈 Инвестиции"]
 
 class FinanceStates(StatesGroup):
@@ -59,8 +60,8 @@ async def cmd_stats(message: types.Message):
         cur.execute("SELECT category, SUM(amount) FROM transactions WHERE user_id=? AND type='expense' GROUP BY category", (user_id,))
         expenses = cur.fetchall()
 
-    total_income = sum(item[1] for item in incomes) if incomes else 0
-    total_expense = sum(item[1] for item in expenses) if expenses else 0
+    total_income = sum(item for item in incomes) if incomes else 0
+    total_expense = sum(item for item in expenses) if expenses else 0
     balance = total_income - total_expense
 
     text = "📊 **ВАША СТАТИСТИКА**\n─────────────────────\n\n🟢 **ДОХОДЫ:**\n"
@@ -109,7 +110,7 @@ async def process_amount_input(message: types.Message, state: FSMContext):
 
 @dp.callback_query(F.data.startswith("cat:"), FinanceStates.choosing_category)
 async def process_category_selection(callback: types.CallbackQuery, state: FSMContext):
-    category = callback.data.split("cat:")[1]
+    category = callback.data.split("cat:")
     user_data = await state.get_data()
     amount = user_data['amount']
     t_type = user_data['type']
@@ -125,8 +126,22 @@ async def process_category_selection(callback: types.CallbackQuery, state: FSMCo
     await callback.message.edit_text(f"✅ **Записано!**\n\n{emoji} Сумма: **{amount:.2f}**\n📁 Категория: **{category}**")
     await callback.answer()
 
+# Функция веб-сервера для Render
+async def handle(request):
+    return web.Response(text="Bot is alive!")
+
 async def main():
+    # Запускаем фоновый веб-сервер, чтобы Render был доволен
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 10000)
+    asyncio.create_task(site.start())
+    
+    # Запускаем бота
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
     asyncio.run(main())
+    
