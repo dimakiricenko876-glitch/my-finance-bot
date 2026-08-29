@@ -88,6 +88,26 @@ async def cmd_start(message: types.Message):
         "• `+2500` — записать доход",
         reply_markup=get_main_menu_keyboard()
     )
+    @dp.message(FinanceStates.adding_category, F.text)
+async def add_category_finish(message: types.Message, state: FSMContext):
+    new_cat = message.text.strip()
+    user_data = await state.get_data()
+    t_type = user_data['manage_type']
+    user_id = message.from_user.id
+    
+    get_user_categories(user_id, t_type)
+    with sqlite3.connect("finance_v3.db") as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO user_categories (user_id, type, category) VALUES (?, ?, ?)", (user_id, t_type, new_cat))
+            conn.commit()
+            await message.answer(f"✅ Категория **{new_cat}** успешно создана!")
+        except sqlite3.IntegrityError:
+            await message.answer("⚠️ Такая категория у вас уже существует!")
+            
+    await state.clear()
+    await message.answer("Главное menu:", reply_markup=get_main_menu_keyboard())
+    
 
 @dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
@@ -243,25 +263,6 @@ async def add_category_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(f"✍️ Напишите название новой категории для **{type_str}**:")
     await callback.answer()
 
-@dp.message(FinanceStates.adding_category, F.text)
-async def add_category_finish(message: types.Message, state: FSMContext):
-    new_cat = message.text.strip()
-    user_data = await state.get_data()
-    t_type = user_data['manage_type']
-    user_id = message.from_user.id
-    
-    get_user_categories(user_id, t_type)
-    with sqlite3.connect("finance_v3.db") as conn:
-        cur = conn.cursor()
-        try:
-            cur.execute("INSERT INTO user_categories (user_id, type, category) VALUES (?, ?, ?)", (user_id, t_type, new_cat))
-            conn.commit()
-            await message.answer(f"✅ Категория **{new_cat}** успешно создана!")
-        except sqlite3.IntegrityError:
-            await message.answer("⚠️ Такая категория у вас уже существует!")
-            
-    await state.clear()
-    await message.answer("Главное menu:", reply_markup=get_main_menu_keyboard())
 
 def generate_excel_report(user_id, sql_time_clause):
     with sqlite3.connect("finance_v3.db") as conn:
