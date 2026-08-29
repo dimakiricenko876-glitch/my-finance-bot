@@ -98,8 +98,13 @@ async def process_amount_input(message: types.Message, state: FSMContext):
     try:
         t_type = "expense" if text.startswith('-') else "income"
         amount = float(text.replace('-', '').replace('+', '').replace(',', '.'))
+        
+        # 🛡 ЗАЩИТА ОТ ГИГАНТСКИХ ЧИСЕЛ
         if amount <= 0:
             await message.answer("⚠️ Сумма должна быть больше нуля!")
+            return
+        if amount > 999999999.99:
+            await message.answer("⚠️ Ошибка! Введена слишком большая сумма. Максимальный лимит: **999 999 999.99**")
             return
             
         await state.update_data(amount=amount, type=t_type)
@@ -114,8 +119,9 @@ async def process_amount_input(message: types.Message, state: FSMContext):
         await state.set_state(FinanceStates.choosing_category)
         sign_text = "🔴 расход" if t_type == "expense" else "🟢 доход"
         await message.answer(f"Вы ввели {sign_text} на сумму **{amount:.2f}**.\n📁 Выберите категорию:", reply_markup=builder.as_markup())
-    except ValueError:
-        await message.answer("⚠️ Введите корректное число. Пример: `-150` ")
+    except (ValueError, OverflowError):
+        await message.answer("⚠️ Введите корректное и реалистичное число. Пример: `-150` ")
+        
 
 @dp.callback_query(F.data.startswith("cat:"), FinanceStates.choosing_category)
 async def process_category_selection(callback: types.CallbackQuery, state: FSMContext):
