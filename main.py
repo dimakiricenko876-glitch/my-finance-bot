@@ -86,8 +86,8 @@ async def cmd_start(message: types.Message):
         "Просто отправь мне число со знаком:\n"
         "• `-500` — записать расход\n"
         "• `+2500` — записать доход",
-        reply_markup=get_main_menu_keyboard()
-    )
+        reply_markup=get_main_menu_keyboard())
+    
     @dp.message(FinanceStates.adding_category, F.text)
 async def add_category_finish(message: types.Message, state: FSMContext):
     new_cat = message.text.strip()
