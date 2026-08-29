@@ -62,7 +62,8 @@ async def cmd_start(message: types.Message):
         "• `+2500` — записать доход",
         reply_markup=get_main_menu_keyboard()
     )
-    @dp.message(F.text & ~F.text.startswith('/'))
+    
+@dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
     text = message.text.strip()
     if not (text.startswith('-') or text.startswith('+')):
@@ -140,7 +141,8 @@ async def process_delete_last(callback: types.CallbackQuery):
     emoji = "🔴" if t_type == "expense" else "🟢"
     await callback.message.answer(f"🗑 **Успешно удалена последняя запись:**\n{emoji} {category}: {amount:.2f}", reply_markup=get_main_menu_keyboard())
     await callback.answer()
-    @dp.callback_query(F.data == "menu_stats")
+    
+@dp.callback_query(F.data == "menu_stats")
 async def process_stats_menu(callback: types.CallbackQuery):
     builder = InlineKeyboardBuilder()
     builder.button(text="🗓 За этот месяц", callback_data="stats:month")
