@@ -12,16 +12,19 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp import web
 from openpyxl import Workbook
 
-# 🔑 ТОКЕН ИЗ BOTFATHER (Вставь свой!)
+# 🔑 ТОКЕН ИЗ BOTFATHER
 TOKEN = "8838512329:AAGzohl24qnx5X2_qurny0obXcpGNC5PEQU"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
+# Фиксированные категории по умолчанию
+EXPENSE_CATEGORIES = ["🛒 Продукты", "🚗 Транспорт", "🏠 Жилье", "🍔 Кафе/Еда", "🎬 Развлечения", "📦 Другое"]
+INCOME_CATEGORIES = ["💰 Зарплата", "💼 Фриланс", "🎁 Подарок", "📈 Инвестиции"]
+
 class FinanceStates(StatesGroup):
     choosing_category = State()
-    adding_category = State()
 
 def init_db():
     with sqlite3.connect("finance_v3.db") as conn:
@@ -36,42 +39,13 @@ def init_db():
                 date DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS user_categories (
-                user_id INTEGER,
-                type TEXT,
-                category TEXT,
-                PRIMARY KEY (user_id, type, category)
-            )
-        ''')
         conn.commit()
 
 init_db()
 
-def get_user_categories(user_id, t_type):
-    default_expenses = ["🛒 Продукты", "🚗 Транспорт", "🏠 Жилье", "🍔 Кафе/Еда", "🎬 Развлечения", "📦 Другое"]
-    default_incomes = ["💰 Зарплата", "💼 Фриланс", "🎁 Подарок", "📈 Инвестиции"]
-    
-    with sqlite3.connect("finance_v3.db") as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT category FROM user_categories WHERE user_id=? AND type=?", (user_id, t_type))
-        rows = cur.fetchall()
-        if rows:
-            return [r[0] for r in rows]
-        
-        defaults = default_expenses if t_type == "expense" else default_incomes
-        for cat in defaults:
-            try:
-                cur.execute("INSERT INTO user_categories (user_id, type, category) VALUES (?, ?, ?)", (user_id, t_type, cat))
-            except sqlite3.IntegrityError:
-                pass
-        conn.commit()
-        return defaults
-
 def get_main_menu_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Посмотреть статистику", callback_data="menu_stats")
-    builder.button(text="📁 Управление категориями", callback_data="menu_categories")
     builder.button(text="📉 Выгрузить отчет в Excel", callback_data="export_excel")
     builder.button(text="↩️ Удалить последнюю запись", callback_data="delete_last")
     builder.adjust(1)
@@ -80,23 +54,16 @@ def get_main_menu_keyboard():
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.answer(
-        "👋 **Привет! Это твой ультимативный финансовый трекер.**\n\n"
-        "🟢 Бот **автоматически обнуляет баланс** в начале каждого месяца и присылает вам готовый Excel-отчет за прошлый месяц!\n\n"
-        "✏️ **Как записать операцию?**\n"
+        "👋 **Привет! Это твой финансовый трекер.**\n\n"
+        "🟢 Бот автоматически обнуляет баланс в начале каждого месяца и присылает вам готовый Excel-отчет за прошлый месяц!\n\n"
+        "✏ " + "**Как записать операцию?**\n"
         "Просто отправь мне число со знаком:\n"
         "• `-500` — записать расход\n"
         "• `+2500` — записать доход",
-        reply_markup=get_main_menu_keyboard())
-            
-    await state.clear()
-    await message.answer("Главное меню:", reply_markup=get_main_menu_keyboard())
-
-@dp.message(F.text & ~F.text.startswith('/'))
+        reply_markup=get_main_menu_keyboard()
+    )
+    @dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state == FinanceStates.adding_category.state:
-        return
-
     text = message.text.strip()
     if not (text.startswith('-') or text.startswith('+')):
         await message.answer("⚠️ Ошибка! Начни сообщение с плюса или минуса. Пример: `-250` или `+1500` ")
@@ -113,7 +80,7 @@ async def process_amount_input(message: types.Message, state: FSMContext):
             return
             
         await state.update_data(amount=amount, type=t_type)
-        categories = get_user_categories(message.from_user.id, t_type)
+        categories = EXPENSE_CATEGORIES if t_type == "expense" else INCOME_CATEGORIES
         
         builder = InlineKeyboardBuilder()
         for cat in categories:
@@ -173,7 +140,7 @@ async def process_delete_last(callback: types.CallbackQuery):
     emoji = "🔴" if t_type == "expense" else "🟢"
     await callback.message.answer(f"🗑 **Успешно удалена последняя запись:**\n{emoji} {category}: {amount:.2f}", reply_markup=get_main_menu_keyboard())
     await callback.answer()
-        @dp.callback_query(F.data == "menu_stats")
+    @dp.callback_query(F.data == "menu_stats")
 async def process_stats_menu(callback: types.CallbackQuery):
     builder = InlineKeyboardBuilder()
     builder.button(text="🗓 За этот месяц", callback_data="stats:month")
@@ -223,25 +190,6 @@ async def display_stats(callback: types.CallbackQuery):
     await callback.message.edit_text(text, reply_markup=builder.as_markup())
     await callback.answer()
 
-@dp.callback_query(F.data == "menu_categories")
-async def process_categories_management(callback: types.CallbackQuery):
-    builder = InlineKeyboardBuilder()
-    builder.button(text="➕ Добавить категорию расходов", callback_data="add_cat:expense")
-    builder.button(text="➕ Добавить категорию доходов", callback_data="add_cat:income")
-    builder.button(text="🔙 В главное меню", callback_data="to_main")
-    builder.adjust(1)
-    await callback.message.edit_text("🛠 Здесь ты можешь расширить списки категорий под себя:", reply_markup=builder.as_markup())
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("add_cat:"))
-async def add_category_start(callback: types.CallbackQuery, state: FSMContext):
-    t_type = callback.data.split("add_cat:")[1]
-    await state.update_data(manage_type=t_type)
-    await state.set_state(FinanceStates.adding_category)
-    type_str = "расходов" if t_type == "expense" else "доходов"
-    await callback.message.edit_text(f"✍️ Напишите название новой категории для **{type_str}**:")
-    await callback.answer()
-
 def generate_excel_report(user_id, sql_time_clause):
     with sqlite3.connect("finance_v3.db") as conn:
         cur = conn.cursor()
@@ -274,7 +222,7 @@ async def process_export_excel(callback: types.CallbackQuery):
         return
         
     input_file = types.FSInputFile(filename)
-    await callback.message.answer_document(document=input_file, caption="📊 Держи твой полный financial отчет!")
+    await callback.message.answer_document(document=input_file, caption="📊 Держи твой полный финансовый отчет!")
     if os.path.exists(filename):
         os.remove(filename)
     await callback.answer()
@@ -360,6 +308,8 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+    
+    
 
     
             
