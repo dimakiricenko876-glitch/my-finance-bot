@@ -13,7 +13,7 @@ from aiohttp import web
 from openpyxl import Workbook
 
 # 🔑 ТОКЕН ИЗ BOTFATHER
-TOKEN = "ТУТ_ТВОЙ_ТОКЕН"
+TOKEN = "8838512329:AAGzohl24qnx5X2_qurny0obXcpGNC5PEQU"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
