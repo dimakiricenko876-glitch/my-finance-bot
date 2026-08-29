@@ -89,7 +89,8 @@ async def cmd_start(message: types.Message):
         reply_markup=get_main_menu_keyboard()
     )
 
-@dp.message(F.text & ~F.text.startswith('/'))
+@dp.message(F.text & ~F.text.startswith('/'), flags={"long_operation": "typing"})
+
 async def process_amount_input(message: types.Message, state: FSMContext):
     text = message.text.strip()
     if not (text.startswith('-') or text.startswith('+')):
