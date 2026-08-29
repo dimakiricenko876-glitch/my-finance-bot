@@ -12,7 +12,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp import web
 from openpyxl import Workbook
 
-# 🔑 ТОКЕН ИЗ BOTFATHER (Замени на свой!)
+# 🔑 ТОКЕН ИЗ BOTFATHER (Вставь свой!)
 TOKEN = "8838512329:AAGzohl24qnx5X2_qurny0obXcpGNC5PEQU"
 
 logging.basicConfig(level=logging.INFO)
@@ -87,8 +87,7 @@ async def cmd_start(message: types.Message):
         "• `-500` — записать расход\n"
         "• `+2500` — записать доход",
         reply_markup=get_main_menu_keyboard()
-        
- )
+    )
     @dp.message(FinanceStates.adding_category, F.text)
 async def add_category_finish(message: types.Message, state: FSMContext):
     new_cat = message.text.strip()
@@ -111,9 +110,8 @@ async def add_category_finish(message: types.Message, state: FSMContext):
 
 @dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
-    # 🛡️ ИСПРАВЛЕНО: Правильная проверка состояния для aiogram 3
     current_state = await state.get_state()
-    if current_state == FinanceStates.adding_category.get_state():
+    if current_state == FinanceStates.adding_category.state:
         return
 
     text = message.text.strip()
@@ -145,7 +143,6 @@ async def process_amount_input(message: types.Message, state: FSMContext):
         await message.answer(f"Вы ввели {sign_text} на сумму **{amount:.2f}**.\n📁 Выберите категорию:", reply_markup=builder.as_markup())
     except (ValueError, OverflowError):
         await message.answer("⚠️ Введите корректное и реалистичное число. Пример: `-150` ")
-        
 
 @dp.callback_query(F.data.startswith("cat:"), FinanceStates.choosing_category)
 async def process_category_selection(callback: types.CallbackQuery, state: FSMContext):
@@ -193,8 +190,7 @@ async def process_delete_last(callback: types.CallbackQuery):
     emoji = "🔴" if t_type == "expense" else "🟢"
     await callback.message.answer(f"🗑 **Успешно удалена последняя запись:**\n{emoji} {category}: {amount:.2f}", reply_markup=get_main_menu_keyboard())
     await callback.answer()
-
-@dp.callback_query(F.data == "menu_stats")
+        @dp.callback_query(F.data == "menu_stats")
 async def process_stats_menu(callback: types.CallbackQuery):
     builder = InlineKeyboardBuilder()
     builder.button(text="🗓 За этот месяц", callback_data="stats:month")
@@ -295,7 +291,7 @@ async def process_export_excel(callback: types.CallbackQuery):
         return
         
     input_file = types.FSInputFile(filename)
-    await callback.message.answer_document(document=input_file, caption="📊 Держи твой полный финансовый отчет!")
+    await callback.message.answer_document(document=input_file, caption="📊 Держи твой полный financial отчет!")
     if os.path.exists(filename):
         os.remove(filename)
     await callback.answer()
@@ -381,5 +377,6 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+
     
-    
+            
