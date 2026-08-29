@@ -111,7 +111,9 @@ async def add_category_finish(message: types.Message, state: FSMContext):
 
 @dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
-    if await state.get_state() == FinanceStates.adding_category.state:
+    # 🛡️ ИСПРАВЛЕНО: Правильная проверка состояния для aiogram 3
+    current_state = await state.get_state()
+    if current_state == FinanceStates.adding_category.get_state():
         return
 
     text = message.text.strip()
@@ -143,6 +145,7 @@ async def process_amount_input(message: types.Message, state: FSMContext):
         await message.answer(f"Вы ввели {sign_text} на сумму **{amount:.2f}**.\n📁 Выберите категорию:", reply_markup=builder.as_markup())
     except (ValueError, OverflowError):
         await message.answer("⚠️ Введите корректное и реалистичное число. Пример: `-150` ")
+        
 
 @dp.callback_query(F.data.startswith("cat:"), FinanceStates.choosing_category)
 async def process_category_selection(callback: types.CallbackQuery, state: FSMContext):
