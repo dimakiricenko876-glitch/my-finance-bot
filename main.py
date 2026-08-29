@@ -89,9 +89,13 @@ async def cmd_start(message: types.Message):
         reply_markup=get_main_menu_keyboard()
     )
 
-@dp.message(F.text & ~F.text.startswith('/'), flags={"long_operation": "typing"})
-
+@dp.message(F.text & ~F.text.startswith('/'))
 async def process_amount_input(message: types.Message, state: FSMContext):
+    # 🛡 ДОБАВИТЬ ЭТИ ДВЕ СТРОКИ: если мы в процессе создания категории, этот хэндлер должен пропустить сообщение
+    current_state = await state.get_state()
+    if current_state == FinanceStates.adding_category.state:
+        return
+
     text = message.text.strip()
     if not (text.startswith('-') or text.startswith('+')):
         await message.answer("⚠️ Ошибка! Начни сообщение с плюса или минуса. Пример: `-250` или `+1500` ")
@@ -100,7 +104,6 @@ async def process_amount_input(message: types.Message, state: FSMContext):
         t_type = "expense" if text.startswith('-') else "income"
         amount = float(text.replace('-', '').replace('+', '').replace(',', '.'))
         
-        # 🛡 ЗАЩИТА ОТ ГИГАНТСКИХ ЧИСЕЛ
         if amount <= 0:
             await message.answer("⚠️ Сумма должна быть больше нуля!")
             return
